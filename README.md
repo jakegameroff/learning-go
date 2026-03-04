@@ -7,5 +7,5 @@
 Learning Go.
 
 - **guessing-game** — Number guessing game (CLI)
-- **todo** — Todo list manager (CLI)
+- **todo-cli** — Todo list manager (CLI)
 - **todo-api** — RESTful todo API with web frontend

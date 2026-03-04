@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #111;
+            color: #e0e0e0;
+            font-family: -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 60px 20px;
+            height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 120px);
+        }
+        h1 { font-size: 1.4rem; margin-bottom: 16px; font-weight: 500; }
+        .status {
+            font-size: 0.8rem;
+            color: #555;
+            margin-bottom: 16px;
+        }
+        .status.connected { color: #4a9; }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #222;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: #1a1a1a;
+        }
+        .message {
+            padding: 8px 0;
+            border-bottom: 1px solid #1e1e1e;
+            word-wrap: break-word;
+        }
+        .message:last-child { border-bottom: none; }
+        .message .name {
+            color: #4a9eff;
+            font-weight: 500;
+            margin-right: 8px;
+        }
+        .message .system {
+            color: #555;
+            font-style: italic;
+        }
+        .input-area {
+            display: flex;
+            gap: 8px;
+        }
+        input {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        input:focus { border-color: #555; }
+        button {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #333;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        button:hover { background: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chat</h1>
+        <div class="status" id="status">Disconnected</div>
+        <div class="messages" id="messages"></div>
+        <div class="input-area">
+            <input type="text" id="input" placeholder="Type a message..." autofocus>
+            <button onclick="send()">Send</button>
+        </div>
+    </div>
+    <script>
+        const colors = ["#4a9eff", "#ff6b9d", "#51cf66", "#fcc419", "#cc5de8", "#ff922b", "#22b8cf", "#ff6b6b"];
+        let name = prompt("Enter your name:") || "anon";
+        let myColor = colors[Math.floor(Math.random() * colors.length)];
+        let ws;
+
+        function connect() {
+            const host = window.location.host;
+            ws = new WebSocket(`ws://${host}/ws`);
+
+            ws.onopen = () => {
+                document.getElementById("status").textContent = "Connected";
+                document.getElementById("status").className = "status connected";
+            };
+
+            ws.onclose = () => {
+                document.getElementById("status").textContent = "Disconnected";
+                document.getElementById("status").className = "status";
+                setTimeout(connect, 2000);
+            };
+
+            ws.onmessage = (e) => {
+                const messages = document.getElementById("messages");
+                const div = document.createElement("div");
+                div.className = "message";
+                div.innerHTML = e.data;
+                messages.appendChild(div);
+                messages.scrollTop = messages.scrollHeight;
+            };
+        }
+
+        function send() {
+            const input = document.getElementById("input");
+            const text = input.value.trim();
+            if (!text || !ws) return;
+
+            ws.send(`<span style="color:${myColor};font-weight:500;margin-right:8px">${name}</span>${text}`);
+            input.value = "";
+        }
+
+        document.getElementById("input").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") send();
+        });
+
+        connect();
+    </script>
+</body>
+</html>

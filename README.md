@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="gopher.svg" width="200" alt="Go Gopher">
+  <img src="gopher.png" width="200" alt="Go Gopher">
 </p>
 
 # Go

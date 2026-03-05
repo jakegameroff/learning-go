@@ -10,4 +10,4 @@ Learning Go.
 - **[todo-cli](todo-cli/)** — Todo list manager (CLI)
 - **[todo-api](todo-api/)** — RESTful todo API with web frontend
 - **[chatroom](chatroom/)** — Real-time chat room with WebSockets and goroutines
-- **[notepad](notepad/)** — Collaborative real-time document editor with CRDT sync (Yjs), live cursors, multi-room support, and anonymous identities
+- **[notep4d](notep4d/)** — Collaborative real-time document editor with CRDT sync (Yjs), multi-room support, and anonymous identities. Live at [notep4d.com](https://notep4d.com)

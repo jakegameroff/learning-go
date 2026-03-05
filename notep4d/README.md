@@ -1,6 +1,6 @@
 # notep4d
 
-Collaborative real-time notepad. Live at [notep4d.com](https://notep4d.com).
+Collaborative real-time notepad. Live at [notep4d.com](https://notep4d.com). Inspired by [cl1p.net](https://cl1p.net).
 
 ## Todo
 

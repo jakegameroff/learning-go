@@ -40,8 +40,6 @@
     <div class="go-form">
         <span style="font-family:monospace;font-size:1rem;">notep4d.com/</span>
         <input type="text" id="room" placeholder="my-notes" autofocus>
-        <br><br>
-        <input type="text" id="name" placeholder="your name (optional)" style="font-family:-apple-system,sans-serif;">
         <button onclick="go()">Go</button>
     </div>
 
@@ -55,17 +53,11 @@
         <tr><td>4.</td><td>Cursors are visible and color-coded</td></tr>
     </table>
 
-    <p class="footer">No accounts. No installs. No data stored.</p>
 
     <script>
         function go() {
             const room = document.getElementById("room").value.trim();
-            if (room) {
-                const name = document.getElementById("name").value.trim();
-                let url = "/" + room;
-                if (name) url += "?name=" + encodeURIComponent(name);
-                window.location.href = url;
-            }
+            if (room) window.location.href = "/" + room;
         }
         document.getElementById("room").addEventListener("keydown", (e) => {
             if (e.key === "Enter") go();

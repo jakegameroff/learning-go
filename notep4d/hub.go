@@ -54,6 +54,8 @@ func run(hub *Hub) {
 			for _, msg := range hub.history {
 				client.conn.WriteMessage(websocket.BinaryMessage, msg)
 			}
+			// indicate to client that we are done sending the history 
+			client.conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"ready"}`))
 
 		case leave := <-hub.leave:
 			delete(hub.clients, leave)

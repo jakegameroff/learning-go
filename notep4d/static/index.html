@@ -103,7 +103,7 @@
         const ytext = ydoc.getText("shared");
         const editor = document.getElementById("editor");
         let ws;
-        let suppressUpdate = false;
+        let suppressUpdate = true;
 
         function absToRel(pos) {
             return Y.createRelativePositionFromTypeIndex(ytext, pos);
@@ -134,12 +134,21 @@
             }
         });
 
-        editor.addEventListener("input", () => {
+        editor.addEventListener("input", (e) => {
             suppressUpdate = true;
             const val = editor.value;
+            const old = ytext.toString();
+
+            // Find the minimal diff
+            let start = 0;
+            while (start < old.length && start < val.length && old[start] === val[start]) start++;
+            let oldEnd = old.length;
+            let newEnd = val.length;
+            while (oldEnd > start && newEnd > start && old[oldEnd - 1] === val[newEnd - 1]) { oldEnd--; newEnd--; }
+
             ydoc.transact(() => {
-                ytext.delete(0, ytext.length);
-                ytext.insert(0, val);
+                if (oldEnd > start) ytext.delete(start, oldEnd - start);
+                if (newEnd > start) ytext.insert(start, val.slice(start, newEnd));
             });
             suppressUpdate = false;
         });
@@ -165,6 +174,12 @@
                 if (typeof e.data !== "string") {
                     const data = new Uint8Array(e.data);
                     Y.applyUpdate(ydoc, data);
+                } else {
+                    const msg = JSON.parse(e.data);
+                    if (msg.type === "ready") {
+                        suppressUpdate = false;
+                        editor.value = ytext.toString();
+                    }
                 }
             };
         }

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>notep4d</title>
+    <style>
+        body {
+            font-family: -apple-system, sans-serif;
+            margin: 0;
+            padding: 12px 20px;
+            color: #333;
+            background: #fff;
+        }
+        .header {
+            margin-bottom: 4px;
+        }
+        h1 {
+            font-size: 1.1rem;
+            font-weight: normal;
+            cursor: pointer;
+            margin: 0;
+        }
+        h1 b { font-family: monospace; }
+        .status { font-size: 0.8rem; color: #999; }
+        .status.connected { color: #4a9; }
+        textarea {
+            width: 100%;
+            height: calc(100vh - 60px);
+            box-sizing: border-box;
+            border: 1px solid #999;
+            padding: 12px;
+            font-family: -apple-system, sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+            resize: vertical;
+            line-height: 1.6;
+            color: inherit;
+            background: inherit;
+        }
+        .btn {
+            font-size: 0.75rem;
+            padding: 1px 8px;
+            cursor: pointer;
+            background: none;
+            border: 1px solid #999;
+            color: inherit;
+            border-radius: 3px;
+        }
+        .btn:hover { border-color: #333; }
+        @media (prefers-color-scheme: dark) {
+            body { background: #111; color: #e0e0e0; }
+            textarea { border-color: #444; }
+            .btn { border-color: #555; }
+            .btn:hover { border-color: #aaa; }
+        }
+    </style>
+</head>
+<body>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span id="title" style="font-size:1.1rem;cursor:pointer;" onclick="navigator.clipboard.writeText('https://notep4d.com'+window.location.pathname).then(()=>{this.style.color='#4a9eff';setTimeout(()=>this.style.color='',300)})"></span>
+        <span style="position:relative;" title="QR code for notepad link">
+            <svg id="qr-icon" style="cursor:pointer;opacity:0.5;width:18px;height:18px;display:block;" onclick="toggleQR(event)" stroke-width="1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 6.6V8.4C9 8.73137 8.73137 9 8.4 9H6.6C6.26863 9 6 8.73137 6 8.4V6.6C6 6.26863 6.26863 6 6.6 6H8.4C8.73137 6 9 6.26863 9 6.6Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 12H9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12V15" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 18H15" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 12.0111L12.01 12" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 12.0111L18.01 12" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 15.0111L12.01 15" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 15.0111L18.01 15" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 18.0111L18.01 18" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.01111L12.01 9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6.01111L12.01 6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 15.6V17.4C9 17.7314 8.73137 18 8.4 18H6.6C6.26863 18 6 17.7314 6 17.4V15.6C6 15.2686 6.26863 15 6.6 15H8.4C8.73137 15 9 15.2686 9 15.6Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 6.6V8.4C18 8.73137 17.7314 9 17.4 9H15.6C15.2686 9 15 8.73137 15 8.4V6.6C15 6.26863 15.2686 6 15.6 6H17.4C17.7314 6 18 6.26863 18 6.6Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3H21V6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 21H21V18" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 3H3V6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 21H3V18" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div id="qr" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;padding:8px;background:#fff;border:1px solid #999;border-radius:4px;z-index:10;"></div>
+        </span>
+    </div>
+    <textarea id="editor" placeholder="Start typing..."></textarea>
+
+    <script>
+        function toggleQR(e) {
+            if (e) e.stopPropagation();
+            const qr = document.getElementById("qr");
+            const icon = document.getElementById("qr-icon");
+            if (qr.style.display === "none") {
+                const url = "https://notep4d.com" + window.location.pathname;
+                qr.innerHTML = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(url) + '">';
+                qr.style.display = "block";
+                icon.style.stroke = "#4a9eff";
+                icon.style.opacity = "1";
+            } else {
+                qr.style.display = "none";
+                icon.style.stroke = "";
+                icon.style.opacity = "0.5";
+            }
+        }
+        document.addEventListener("click", () => {
+            const qr = document.getElementById("qr");
+            if (qr && qr.style.display !== "none") {
+                qr.style.display = "none";
+                const icon = document.getElementById("qr-icon");
+                icon.style.stroke = "";
+                icon.style.opacity = "0.5";
+            }
+        });
+    </script>
+    <script type="module">
+        import * as Y from 'https://cdn.jsdelivr.net/npm/yjs@13/+esm';
+
+        const roomName = window.location.pathname;
+        document.getElementById("title").innerHTML = "notep4d.com<b>" + roomName + "</b>";
+
+        const ydoc = new Y.Doc();
+        const ytext = ydoc.getText("shared");
+        const editor = document.getElementById("editor");
+        let ws;
+        let suppressUpdate = false;
+
+        function absToRel(pos) {
+            return Y.createRelativePositionFromTypeIndex(ytext, pos);
+        }
+
+        function relToAbs(rel) {
+            const abs = Y.createAbsolutePositionFromRelativePosition(rel, ydoc);
+            return abs ? abs.index : null;
+        }
+
+        ydoc.on("update", (update) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(update);
+            }
+        });
+
+        ytext.observe(() => {
+            if (!suppressUpdate) {
+                const relStart = absToRel(editor.selectionStart);
+                const relEnd = absToRel(editor.selectionEnd);
+
+                editor.value = ytext.toString();
+
+                const newStart = relToAbs(relStart) ?? 0;
+                const newEnd = relToAbs(relEnd) ?? 0;
+                editor.selectionStart = newStart;
+                editor.selectionEnd = newEnd;
+            }
+        });
+
+        editor.addEventListener("input", () => {
+            suppressUpdate = true;
+            const val = editor.value;
+            ydoc.transact(() => {
+                ytext.delete(0, ytext.length);
+                ytext.insert(0, val);
+            });
+            suppressUpdate = false;
+        });
+
+        function connect() {
+            const host = window.location.host;
+            const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+            ws = new WebSocket(`${proto}//${host}${roomName}`);
+            ws.binaryType = "arraybuffer";
+
+            ws.onopen = () => {
+                document.getElementById("status").textContent = "Connected";
+                document.getElementById("status").className = "status connected";
+            };
+
+            ws.onclose = () => {
+                document.getElementById("status").textContent = "Disconnected";
+                document.getElementById("status").className = "status";
+                setTimeout(connect, 2000);
+            };
+
+            ws.onmessage = (e) => {
+                if (typeof e.data !== "string") {
+                    const data = new Uint8Array(e.data);
+                    Y.applyUpdate(ydoc, data);
+                }
+            };
+        }
+
+        connect();
+    </script>
+</body>
+</html>

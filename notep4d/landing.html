@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>notep4d</title>
+    <style>
+        body {
+            font-family: -apple-system, sans-serif;
+            max-width: 520px;
+            margin: 80px auto;
+            padding: 0 20px;
+            color: #333;
+            background: #fff;
+        }
+        h2 { font-size: 1.1rem; margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 6px; }
+        p { line-height: 1.6; margin-bottom: 16px; font-size: 0.95rem; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+        td { padding: 6px 8px; font-size: 0.95rem; vertical-align: top; }
+        td:first-child { font-weight: bold; width: 30px; }
+        .go-form { margin: 24px 0; }
+        .go-form input {
+            font-family: monospace;
+            font-size: 1rem;
+            padding: 4px 6px;
+            border: 1px solid #999;
+            width: 200px;
+        }
+        .go-form button {
+            font-size: 1rem;
+            padding: 4px 14px;
+            cursor: pointer;
+        }
+        .footer { color: #999; font-size: 0.8rem; margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1 style="font-size:1.4rem;margin-bottom:16px;font-weight:normal;">The internet <b style="font-family:monospace;">notepad</b></h1>
+
+    <div class="go-form">
+        <span style="font-family:monospace;font-size:1rem;">notep4d.com/</span>
+        <input type="text" id="room" placeholder="my-notes" autofocus>
+        <br><br>
+        <input type="text" id="name" placeholder="your name (optional)" style="font-family:-apple-system,sans-serif;">
+        <button onclick="go()">Go</button>
+    </div>
+
+    <p>A live notepad anyone can edit at the same time. Pick a name, share the link, type together in real time.</p>
+
+    <h2>How it works</h2>
+    <table>
+        <tr><td>1.</td><td>Enter any name above to create a notepad</td></tr>
+        <tr><td>2.</td><td>Share the URL with others</td></tr>
+        <tr><td>3.</td><td>Everyone sees every keystroke in real time</td></tr>
+        <tr><td>4.</td><td>Cursors are visible and color-coded</td></tr>
+    </table>
+
+    <p class="footer">No accounts. No installs. No data stored.</p>
+
+    <script>
+        function go() {
+            const room = document.getElementById("room").value.trim();
+            if (room) {
+                const name = document.getElementById("name").value.trim();
+                let url = "/" + room;
+                if (name) url += "?name=" + encodeURIComponent(name);
+                window.location.href = url;
+            }
+        }
+        document.getElementById("room").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") go();
+        });
+    </script>
+</body>
+</html>

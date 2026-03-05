@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 )
 
@@ -9,10 +10,13 @@ func main() {
 		upgradeHeader := r.Header.Get("Upgrade")
 		if upgradeHeader == "websocket" {
 			handleWebSocket(w, r)
+		} else if r.URL.Path == "/" {
+			http.ServeFile(w, r, "landing.html")
 		} else {
 			http.ServeFile(w, r, "index.html")
 		}
 	})
 
-	http.ListenAndServe(":8000", nil)
+	log.Println("Listening on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

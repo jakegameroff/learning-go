@@ -20,7 +20,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// make user id
-	data, _ := os.ReadFile("animals.json")
+	data, _ := os.ReadFile("static/animals.json")
 	var animals []string
 	json.Unmarshal(data, &animals)
 	userID := "Anonymous " + animals[rand.Intn(len(animals))]

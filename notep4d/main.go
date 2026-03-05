@@ -11,9 +11,9 @@ func main() {
 		if upgradeHeader == "websocket" {
 			handleWebSocket(w, r)
 		} else if r.URL.Path == "/" {
-			http.ServeFile(w, r, "landing.html")
+			http.ServeFile(w, r, "static/landing.html")
 		} else {
-			http.ServeFile(w, r, "index.html")
+			http.ServeFile(w, r, "static/index.html")
 		}
 	})
 

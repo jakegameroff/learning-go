@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>hex</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, sans-serif;
+            margin: 0;
+            padding: 16px;
+            color: #333;
+            background: #fafaf8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100dvh;
+        }
+        .header {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .title {
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+        .title b { font-family: monospace; }
+        .status { font-size: 0.8rem; color: #aaa; }
+        .status.connected { color: #6b9; }
+        .info {
+            width: 100%;
+            max-width: 600px;
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        .info .player-name { font-weight: 600; color: #555; }
+        .info .red { color: #e25555; }
+        .info .blue { color: #4488cc; }
+        .turn-indicator {
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            text-align: center;
+            letter-spacing: 0.02em;
+        }
+        .winner-banner {
+            font-size: 1.3rem;
+            font-weight: 600;
+            text-align: center;
+            padding: 12px 20px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        }
+        .board-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            width: 100%;
+            padding: 10px 0;
+        }
+        #board {
+            max-width: 100%;
+            height: auto;
+            touch-action: manipulation;
+        }
+        .hex-cell {
+            cursor: pointer;
+            transition: fill 0.15s ease, transform 0.15s ease;
+        }
+        .hex-cell.empty { fill: #e4e0d8; }
+        .hex-cell.empty:hover { fill: #d5d0c6; }
+        .hex-cell.red { fill: #e25555; cursor: default; }
+        .hex-cell.blue { fill: #4488cc; cursor: default; }
+        .hex-cell.placed {
+            animation: plop 0.25s ease-out;
+        }
+        @keyframes plop {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+        .hover-preview { opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+        .hex-cell.empty:hover ~ .hover-preview { opacity: 1; }
+
+        @media (prefers-color-scheme: dark) {
+            body { background: #151514; color: #ddd; }
+            .info { color: #777; }
+            .info .player-name { color: #bbb; }
+            .winner-banner { background: #222; box-shadow: 0 1px 6px rgba(0,0,0,0.3); }
+            .hex-cell.empty { fill: #2a2926; }
+            .hex-cell.empty:hover { fill: #3a3835; }
+            .hex-cell.red { fill: #cc4444; }
+            .hex-cell.blue { fill: #3377aa; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="title" onclick="navigator.clipboard.writeText(window.location.href).then(()=>{this.style.color='#6b9';setTimeout(()=>this.style.color='',400)})">
+            hex<b id="room-name"></b>
+        </span>
+        <span id="status" class="status">Connecting...</span>
+    </div>
+    <div class="info">
+        You are <span id="player-name" class="player-name"></span>
+        <span id="player-color"></span>
+    </div>
+    <div id="turn" class="turn-indicator"></div>
+    <div id="winner" class="winner-banner" style="display:none;"></div>
+    <div class="board-wrap">
+        <svg id="board"></svg>
+    </div>
+
+    <script>
+        const SIZE = 11;
+        const roomName = window.location.pathname;
+        document.getElementById("room-name").textContent = roomName;
+
+        let playerID = "";
+        let myColor = null;
+        let currentTurn = "red";
+        let gameOver = false;
+        let ws;
+
+        // Hex geometry — pointy-top hexagons
+        const HEX_R = 28;
+        const HEX_W = HEX_R * Math.sqrt(3);
+        const HEX_H = HEX_R * 2;
+        const GAP = 4;
+        const ns = "http://www.w3.org/2000/svg";
+
+        function hexCorner(cx, cy, r, i) {
+            const angle = Math.PI / 6 + i * Math.PI / 3;
+            return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+        }
+
+        function hexPoints(cx, cy, r) {
+            return Array.from({length: 6}, (_, i) => hexCorner(cx, cy, r || HEX_R, i).map(v => v.toFixed(2)).join(",")).join(" ");
+        }
+
+        function cellCenter(r, c) {
+            const colStep = HEX_W + GAP;
+            const rowStep = HEX_H * 0.75 + GAP;
+            const rowShift = colStep / 2;
+            const cx = r * rowShift + c * colStep + HEX_W / 2;
+            const cy = r * rowStep + HEX_R;
+            return [cx, cy];
+        }
+
+        function buildBoard() {
+            const svg = document.getElementById("board");
+
+            const colStep = HEX_W + GAP;
+            const rowStep = HEX_H * 0.75 + GAP;
+            const rowShift = colStep / 2;
+            const pad = 40;
+
+            const totalW = (SIZE - 1) * colStep + HEX_W + (SIZE - 1) * rowShift + pad * 2;
+            const totalH = (SIZE - 1) * rowStep + HEX_H + pad * 2;
+            svg.setAttribute("viewBox", (-pad) + " " + (-pad) + " " + totalW + " " + totalH);
+            svg.setAttribute("width", totalW);
+            svg.setAttribute("height", totalH);
+
+            // Board edge borders — zigzag polylines tracing hex edges
+            function drawBorder(points, color) {
+                const poly = document.createElementNS(ns, "polyline");
+                poly.setAttribute("points", points.map(p => p.map(v => v.toFixed(2)).join(",")).join(" "));
+                poly.setAttribute("fill", "none");
+                poly.setAttribute("stroke", color);
+                poly.setAttribute("stroke-width", 2.5);
+                poly.setAttribute("stroke-linejoin", "round");
+                poly.setAttribute("stroke-linecap", "round");
+                poly.setAttribute("opacity", "1");
+                svg.appendChild(poly);
+            }
+
+            // Corner indices for pointy-top hex (angle = π/6 + i*π/3):
+            // 0: bottom-right, 1: bottom, 2: bottom-left
+            // 3: top-left, 4: top, 5: top-right
+            const BR = HEX_R + GAP;  // border radius — slightly larger to cover gaps
+
+            // Draw order: bottom-red, right-blue, top-red, left-blue
+            // Red dominates top-right corner, blue dominates bottom-left corner
+
+            // Bottom border (red) — drawn first
+            const botPts = [];
+            for (let c = 0; c < SIZE; c++) {
+                const [cx, cy] = cellCenter(SIZE - 1, c);
+                botPts.push(hexCorner(cx, cy, BR, 2));
+                botPts.push(hexCorner(cx, cy, BR, 1));
+                botPts.push(hexCorner(cx, cy, BR, 0));
+            }
+            drawBorder(botPts, "#e25555");
+
+            // Right border (blue)
+            const rightPts = [];
+            for (let r = 0; r < SIZE; r++) {
+                const [cx, cy] = cellCenter(r, SIZE - 1);
+                rightPts.push(hexCorner(cx, cy, BR, 4));
+                rightPts.push(hexCorner(cx, cy, BR, 5));
+                rightPts.push(hexCorner(cx, cy, BR, 0));
+            }
+            drawBorder(rightPts, "#4488cc");
+
+            // Top border (red)
+            const topPts = [];
+            for (let c = 0; c < SIZE; c++) {
+                const [cx, cy] = cellCenter(0, c);
+                topPts.push(hexCorner(cx, cy, BR, 3));
+                topPts.push(hexCorner(cx, cy, BR, 4));
+                topPts.push(hexCorner(cx, cy, BR, 5));
+            }
+            drawBorder(topPts, "#e25555");
+
+            // Left border (blue) — drawn last
+            const leftPts = [];
+            for (let r = 0; r < SIZE; r++) {
+                const [cx, cy] = cellCenter(r, 0);
+                leftPts.push(hexCorner(cx, cy, BR, 3));
+                leftPts.push(hexCorner(cx, cy, BR, 2));
+                leftPts.push(hexCorner(cx, cy, BR, 1));
+            }
+            drawBorder(leftPts, "#4488cc");
+
+            // Draw hex cells
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const [cx, cy] = cellCenter(r, c);
+
+                    const hex = document.createElementNS(ns, "polygon");
+                    hex.setAttribute("points", hexPoints(cx, cy));
+                    hex.setAttribute("class", "hex-cell empty");
+                    hex.setAttribute("data-index", r * SIZE + c);
+                    hex.addEventListener("click", () => onCellClick(r, c, hex));
+                    svg.appendChild(hex);
+                }
+            }
+        }
+
+        function onCellClick(r, c, cell) {
+            if (gameOver) return;
+            if (cell.classList.contains("red") || cell.classList.contains("blue")) return;
+            if (myColor && myColor !== currentTurn) return;
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            const index = r * SIZE + c;
+            const msg = JSON.stringify({ Index: index, Color: currentTurn });
+            ws.send(msg);
+        }
+
+        function updateTurn() {
+            const el = document.getElementById("turn");
+            if (gameOver) {
+                el.style.display = "none";
+                return;
+            }
+            const color = currentTurn === "red" ? "#e25555" : "#4488cc";
+            el.innerHTML = '<span style="color:' + color + '">' + currentTurn + '</span> to move';
+        }
+
+        function connect() {
+            const host = window.location.host;
+            const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+            ws = new WebSocket(proto + "//" + host + roomName);
+
+            ws.onopen = () => {
+                document.getElementById("status").textContent = "Connected";
+                document.getElementById("status").className = "status connected";
+            };
+
+            ws.onclose = () => {
+                document.getElementById("status").textContent = "Disconnected";
+                document.getElementById("status").className = "status";
+                if (!gameOver) setTimeout(connect, 2000);
+            };
+
+            ws.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+
+                if (msg.playerID) {
+                    playerID = msg.playerID;
+                    document.getElementById("player-name").textContent = playerID;
+                    return;
+                }
+
+                if (msg.color) {
+                    myColor = msg.color;
+                    const el = document.getElementById("player-color");
+                    const cls = myColor === "red" ? "red" : "blue";
+                    el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
+                    return;
+                }
+
+                if (msg.winner) {
+                    gameOver = true;
+                    const el = document.getElementById("winner");
+                    const color = msg.winner === "red" ? "#e25555" : "#4488cc";
+                    el.innerHTML = '<span style="color:' + color + '">' + msg.winner + ' wins!</span>';
+                    el.style.display = "block";
+                    updateTurn();
+                    return;
+                }
+
+                if (msg.Index !== undefined && msg.Color) {
+                    const cell = document.querySelector('[data-index="' + msg.Index + '"]');
+                    if (cell) {
+                        cell.classList.remove("empty");
+                        cell.classList.add(msg.Color, "placed");
+                    }
+                    currentTurn = msg.Color === "red" ? "blue" : "red";
+                    updateTurn();
+                }
+            };
+        }
+
+        buildBoard();
+        updateTurn();
+        connect();
+    </script>
+</body>
+</html>

@@ -9,7 +9,7 @@
         body {
             font-family: -apple-system, sans-serif;
             margin: 0;
-            padding: 16px;
+            padding: 24px 16px;
             color: #333;
             background: #fafaf8;
             display: flex;
@@ -23,7 +23,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
+            margin-bottom: 12px;
         }
         .title {
             font-size: 1.1rem;
@@ -64,10 +64,11 @@
             align-items: center;
             flex: 1;
             width: 100%;
-            padding: 10px 0;
+            padding: 0;
         }
         #board {
-            max-width: 100%;
+            width: 100%;
+            max-width: 700px;
             height: auto;
             touch-action: manipulation;
         }
@@ -86,8 +87,34 @@
             0% { opacity: 0.4; }
             100% { opacity: 1; }
         }
-        .hover-preview { opacity: 0; transition: opacity 0.15s; pointer-events: none; }
-        .hex-cell.empty:hover ~ .hover-preview { opacity: 1; }
+        .hex-cell.win-pulse {
+            animation: pulse 0.6s ease-in-out 3;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .hex-cell.fade-out {
+            transition: opacity 0.8s ease;
+            opacity: 0;
+        }
+        .winner-banner {
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) and (orientation: portrait) {
+            .board-wrap {
+                width: calc(100vh - 80px);
+                height: calc(100vw - 80px);
+                transform: rotate(90deg);
+                transform-origin: center center;
+                margin: 40px;
+            }
+        }
 
         @media (prefers-color-scheme: dark) {
             body { background: #151514; color: #ddd; }
@@ -112,7 +139,8 @@
         You are <span id="player-name" class="player-name"></span>
         <span id="player-color"></span>
     </div>
-    <div id="turn" class="turn-indicator"></div>
+    <div id="waiting" class="turn-indicator" style="color:#aaa;">Waiting for opponent...</div>
+    <div id="turn" class="turn-indicator" style="display:none;"></div>
     <div id="winner" class="winner-banner" style="display:none;"></div>
     <div class="board-wrap">
         <svg id="board"></svg>
@@ -126,6 +154,7 @@
         let playerID = "";
         let myColor = null;
         let currentTurn = "red";
+        let gameStarted = false;
         let gameOver = false;
         let ws;
 
@@ -165,69 +194,68 @@
             const totalW = (SIZE - 1) * colStep + HEX_W + (SIZE - 1) * rowShift + pad * 2;
             const totalH = (SIZE - 1) * rowStep + HEX_H + pad * 2;
             svg.setAttribute("viewBox", (-pad) + " " + (-pad) + " " + totalW + " " + totalH);
-            svg.setAttribute("width", totalW);
-            svg.setAttribute("height", totalH);
-
-            // Board edge borders — zigzag polylines tracing hex edges
-            function drawBorder(points, color) {
-                const poly = document.createElementNS(ns, "polyline");
-                poly.setAttribute("points", points.map(p => p.map(v => v.toFixed(2)).join(",")).join(" "));
-                poly.setAttribute("fill", "none");
-                poly.setAttribute("stroke", color);
-                poly.setAttribute("stroke-width", 2.5);
-                poly.setAttribute("stroke-linejoin", "round");
-                poly.setAttribute("stroke-linecap", "round");
-                poly.setAttribute("opacity", "1");
-                svg.appendChild(poly);
-            }
 
             // Corner indices for pointy-top hex (angle = π/6 + i*π/3):
             // 0: bottom-right, 1: bottom, 2: bottom-left
             // 3: top-left, 4: top, 5: top-right
-            const BR = HEX_R + GAP;  // border radius — slightly larger to cover gaps
+
+            function drawEdge(p1, p2, color) {
+                const line = document.createElementNS(ns, "line");
+                line.setAttribute("x1", p1[0].toFixed(2));
+                line.setAttribute("y1", p1[1].toFixed(2));
+                line.setAttribute("x2", p2[0].toFixed(2));
+                line.setAttribute("y2", p2[1].toFixed(2));
+                line.setAttribute("stroke", color);
+                line.setAttribute("stroke-width", 2.5);
+                line.setAttribute("stroke-linecap", "round");
+                svg.appendChild(line);
+            }
 
             // Draw order: bottom-red, right-blue, top-red, left-blue
-            // Red dominates top-right corner, blue dominates bottom-left corner
 
-            // Bottom border (red) — drawn first
-            const botPts = [];
+            // Bottom border (red)
             for (let c = 0; c < SIZE; c++) {
                 const [cx, cy] = cellCenter(SIZE - 1, c);
-                botPts.push(hexCorner(cx, cy, BR, 2));
-                botPts.push(hexCorner(cx, cy, BR, 1));
-                botPts.push(hexCorner(cx, cy, BR, 0));
+                drawEdge(hexCorner(cx, cy, HEX_R, 2), hexCorner(cx, cy, HEX_R, 1), "#e25555");
+                drawEdge(hexCorner(cx, cy, HEX_R, 1), hexCorner(cx, cy, HEX_R, 0), "#e25555");
+                if (c < SIZE - 1) {
+                    const [nx, ny] = cellCenter(SIZE - 1, c + 1);
+                    drawEdge(hexCorner(cx, cy, HEX_R, 0), hexCorner(nx, ny, HEX_R, 2), "#e25555");
+                }
             }
-            drawBorder(botPts, "#e25555");
 
             // Right border (blue)
-            const rightPts = [];
             for (let r = 0; r < SIZE; r++) {
                 const [cx, cy] = cellCenter(r, SIZE - 1);
-                rightPts.push(hexCorner(cx, cy, BR, 4));
-                rightPts.push(hexCorner(cx, cy, BR, 5));
-                rightPts.push(hexCorner(cx, cy, BR, 0));
+                drawEdge(hexCorner(cx, cy, HEX_R, 4), hexCorner(cx, cy, HEX_R, 5), "#4488cc");
+                drawEdge(hexCorner(cx, cy, HEX_R, 5), hexCorner(cx, cy, HEX_R, 0), "#4488cc");
+                if (r < SIZE - 1) {
+                    const [nx, ny] = cellCenter(r + 1, SIZE - 1);
+                    drawEdge(hexCorner(cx, cy, HEX_R, 0), hexCorner(nx, ny, HEX_R, 4), "#4488cc");
+                }
             }
-            drawBorder(rightPts, "#4488cc");
 
             // Top border (red)
-            const topPts = [];
             for (let c = 0; c < SIZE; c++) {
                 const [cx, cy] = cellCenter(0, c);
-                topPts.push(hexCorner(cx, cy, BR, 3));
-                topPts.push(hexCorner(cx, cy, BR, 4));
-                topPts.push(hexCorner(cx, cy, BR, 5));
+                drawEdge(hexCorner(cx, cy, HEX_R, 3), hexCorner(cx, cy, HEX_R, 4), "#e25555");
+                drawEdge(hexCorner(cx, cy, HEX_R, 4), hexCorner(cx, cy, HEX_R, 5), "#e25555");
+                if (c < SIZE - 1) {
+                    const [nx, ny] = cellCenter(0, c + 1);
+                    drawEdge(hexCorner(cx, cy, HEX_R, 5), hexCorner(nx, ny, HEX_R, 3), "#e25555");
+                }
             }
-            drawBorder(topPts, "#e25555");
 
-            // Left border (blue) — drawn last
-            const leftPts = [];
+            // Left border (blue)
             for (let r = 0; r < SIZE; r++) {
                 const [cx, cy] = cellCenter(r, 0);
-                leftPts.push(hexCorner(cx, cy, BR, 3));
-                leftPts.push(hexCorner(cx, cy, BR, 2));
-                leftPts.push(hexCorner(cx, cy, BR, 1));
+                drawEdge(hexCorner(cx, cy, HEX_R, 3), hexCorner(cx, cy, HEX_R, 2), "#4488cc");
+                drawEdge(hexCorner(cx, cy, HEX_R, 2), hexCorner(cx, cy, HEX_R, 1), "#4488cc");
+                if (r < SIZE - 1) {
+                    const [nx, ny] = cellCenter(r + 1, 0);
+                    drawEdge(hexCorner(cx, cy, HEX_R, 1), hexCorner(nx, ny, HEX_R, 3), "#4488cc");
+                }
             }
-            drawBorder(leftPts, "#4488cc");
 
             // Draw hex cells
             for (let r = 0; r < SIZE; r++) {
@@ -245,13 +273,13 @@
         }
 
         function onCellClick(r, c, cell) {
-            if (gameOver) return;
+            if (!gameStarted || gameOver) return;
             if (cell.classList.contains("red") || cell.classList.contains("blue")) return;
-            if (myColor && myColor !== currentTurn) return;
+            if (myColor !== currentTurn) return;
             if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
             const index = r * SIZE + c;
-            const msg = JSON.stringify({ Index: index, Color: currentTurn });
+            const msg = JSON.stringify({ index: index });
             ws.send(msg);
         }
 
@@ -290,6 +318,53 @@
                     return;
                 }
 
+                if (msg.index !== undefined && msg.color) {
+                    if (!gameStarted) return;
+                    const cell = document.querySelector('[data-index="' + msg.index + '"]');
+                    if (cell) {
+                        cell.classList.remove("empty");
+                        cell.classList.add(msg.color, "placed");
+                    }
+                    currentTurn = msg.color === "red" ? "blue" : "red";
+                    updateTurn();
+                    return;
+                }
+
+                if (msg.reset) {
+                    const newColor = msg.color;
+
+                    // wait for win animation to finish, then fade out and reset
+                    setTimeout(() => {
+                        // update color for next game
+                        if (newColor) {
+                            myColor = newColor;
+                            const el = document.getElementById("player-color");
+                            const cls = myColor === "red" ? "red" : "blue";
+                            el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
+                        }
+
+                        // fade out all cells
+                        document.querySelectorAll(".hex-cell").forEach(c => {
+                            c.classList.add("fade-out");
+                        });
+
+                        setTimeout(() => {
+                            gameOver = false;
+                            gameStarted = true;
+                            currentTurn = "red";
+                            document.getElementById("winner").style.display = "none";
+                            document.getElementById("turn").style.display = "";
+                            document.querySelectorAll(".hex-cell").forEach(c => {
+                                c.classList.remove("red", "blue", "placed", "win-pulse", "fade-out");
+                                c.classList.add("empty");
+                                c.style.opacity = "";
+                            });
+                            updateTurn();
+                        }, 1000);
+                    }, 3000);
+                    return;
+                }
+
                 if (msg.color) {
                     myColor = msg.color;
                     const el = document.getElementById("player-color");
@@ -298,30 +373,42 @@
                     return;
                 }
 
-                if (msg.winner) {
-                    gameOver = true;
-                    const el = document.getElementById("winner");
-                    const color = msg.winner === "red" ? "#e25555" : "#4488cc";
-                    el.innerHTML = '<span style="color:' + color + '">' + msg.winner + ' wins!</span>';
-                    el.style.display = "block";
+                if (msg.start) {
+                    gameStarted = true;
+                    document.getElementById("waiting").style.display = "none";
+                    document.getElementById("turn").style.display = "";
                     updateTurn();
                     return;
                 }
 
-                if (msg.Index !== undefined && msg.Color) {
-                    const cell = document.querySelector('[data-index="' + msg.Index + '"]');
-                    if (cell) {
-                        cell.classList.remove("empty");
-                        cell.classList.add(msg.Color, "placed");
-                    }
-                    currentTurn = msg.Color === "red" ? "blue" : "red";
-                    updateTurn();
+                if (msg.error) {
+                    document.getElementById("waiting").textContent = msg.error === "room_full" ? "Room is full" : msg.error;
+                    return;
                 }
+
+                if (msg.winner) {
+                    gameOver = true;
+                    document.getElementById("turn").style.display = "none";
+
+                    // pulse winning color cells
+                    document.querySelectorAll(".hex-cell." + msg.winner).forEach(c => {
+                        c.classList.add("win-pulse");
+                    });
+
+                    // show banner after pulse
+                    setTimeout(() => {
+                        const el = document.getElementById("winner");
+                        const color = msg.winner === "red" ? "#e25555" : "#4488cc";
+                        el.innerHTML = '<span style="color:' + color + '">' + msg.winner + ' wins!</span>';
+                        el.style.display = "block";
+                    }, 600);
+                    return;
+                }
+
             };
         }
 
         buildBoard();
-        updateTurn();
         connect();
     </script>
 </body>

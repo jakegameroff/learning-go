@@ -1,4 +1,4 @@
-module hex
+module hexwithfriends
 
 go 1.25.6
 

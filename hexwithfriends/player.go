@@ -14,7 +14,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	playerID := r.URL.Query().Get("name")
 	hub := getRoom(roomName)
 
-	var upgrader = websocket.Upgrader{}
+	var upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true },
+	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
@@ -30,7 +32,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	idMsg, _ := json.Marshal(map[string]string{"playerID": playerID})
 	conn.WriteMessage(websocket.TextMessage, idMsg)
 
-	addClient(hub, conn)
+	addClient(hub, conn, playerID)
 	defer removeClient(hub, conn)
 	listenForClientMessage(hub, conn)
 }
@@ -41,6 +43,6 @@ func listenForClientMessage(hub *Hub, conn *websocket.Conn) {
 		if err != nil {
 			return
 		}
-		hub.broadcast <- msg
+		hub.broadcast <- HexMove{conn: conn, data: msg}
 	}
 }

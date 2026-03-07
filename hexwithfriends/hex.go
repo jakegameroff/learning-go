@@ -1,16 +1,14 @@
 package main
 
-import "fmt"
-
 type Game struct {
-	board  [totalNodes]Node
-	parent [totalNodes]int
+	Board  [totalNodes]Node
+	Parent [totalNodes]int
 }
 
 type Node struct {
-	Index    int
-	Color    string // "red" | "blue" | ""
-	NodeType string
+	Index     int    `json:"index"`
+	Color     string `json:"color"`
+	IsWinNode bool   `json:"-"`
 }
 
 type Pair struct{ R, C int }
@@ -24,23 +22,23 @@ const b2 = size*size + 3
 
 func initGame() Game {
 	var g Game
-	for i := range g.board {
-		nodeType := "board_node"
+	for i := range g.Board {
 		var color string
+		isWinNode := false
 		if i >= r1 {
-			nodeType = "win_node"
+			isWinNode = true
 			if i == r1 || i == r2 {
 				color = "red"
 			} else {
 				color = "blue"
 			}
 		}
-		g.board[i] = Node{
-			Index:    i,
-			Color:    color,
-			NodeType: nodeType,
+		g.Board[i] = Node{
+			Index:     i,
+			Color:     color,
+			IsWinNode: isWinNode,
 		}
-		g.parent[i] = i
+		g.Parent[i] = i
 	}
 	return g
 }
@@ -91,7 +89,6 @@ func (g *Game) getNeighborIndices(index int) []int {
 			candidates = append(candidates, index)
 		}
 	}
-	fmt.Printf("%+v\n", candidates)
 	return candidates
 }
 
@@ -103,7 +100,7 @@ func (g *Game) getMonochromaticNeighbors(node Node) []int {
 
 	candidateIndices := g.getNeighborIndices(index)
 	for _, index := range candidateIndices {
-		node := g.board[index]
+		node := g.Board[index]
 		if node.Color == color {
 			monochromaticNeighbors = append(monochromaticNeighbors, node.Index)
 		}
@@ -123,8 +120,4 @@ func (g *Game) isWinningMove(node Node) bool {
 		return g.find(b1) == g.find(b2)
 	}
 	return false
-}
-
-func (g *Game) move(node Node) {
-	g.board[node.Index] = node
 }

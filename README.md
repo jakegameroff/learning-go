@@ -4,7 +4,7 @@
 
 # Go
 
-Learning Go.
+Learning Go. These are quick projects I'm building to pick up the language — some of them I plan to break out into their own repos and make production-ready when I have more time.
 
 - **[guessing-game](guessing-game/)** — Number guessing game (CLI)
 - **[todo-cli](todo-cli/)** — Todo list manager (CLI)

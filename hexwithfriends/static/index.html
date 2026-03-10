@@ -319,6 +319,56 @@
             ws.onmessage = (e) => {
                 const msg = JSON.parse(e.data);
 
+                if (msg.start) {
+                    gameStarted = true;
+                    if (msg.sessionID) {
+                        sessionID = msg.sessionID;
+                        localStorage.setItem("hex_session_" + roomName, sessionID);
+                    }
+                    if (msg.color) {
+                        myColor = msg.color;
+                        const el = document.getElementById("player-color");
+                        const cls = myColor === "red" ? "red" : "blue";
+                        el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
+                    }
+                    if (msg.playerName) {
+                        playerName = msg.playerName;
+                        document.getElementById("player-name").textContent = playerName;
+                    }
+                    document.getElementById("waiting").style.display = "none";
+                    document.getElementById("turn").style.display = "";
+                    updateTurn();
+                    return;
+                }
+
+                if (msg.reconnected) {
+                    myColor = msg.color;
+                    playerName = msg.playerName;
+                    gameStarted = true;
+                    currentTurn = msg.isRedTurn ? "red" : "blue";
+                    document.getElementById("player-name").textContent = playerName;
+                    const el = document.getElementById("player-color");
+                    const cls = myColor === "red" ? "red" : "blue";
+                    el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
+
+                    if (msg.board) {
+                        msg.board.forEach(node => {
+                            if (node.color) {
+                                const cell = document.querySelector('[data-index="' + node.index + '"]');
+                                if (cell) {
+                                    cell.classList.remove("empty");
+                                    cell.classList.add(node.color);
+                                }
+                            }
+                        });
+                    }
+
+                    document.getElementById("waiting").style.display = "none";
+                    document.getElementById("turn").style.display = "";
+                    updateTurn();
+                    return;
+                }
+
                 if (msg.playerName) {
                     playerName = msg.playerName;
                     document.getElementById("player-name").textContent = playerName;
@@ -377,42 +427,6 @@
                     const el = document.getElementById("player-color");
                     const cls = myColor === "red" ? "red" : "blue";
                     el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
-                    return;
-                }
-
-                if (msg.start) {
-                    gameStarted = true;
-                    if (msg.sessionID) {
-                        sessionID = msg.sessionID;
-                        localStorage.setItem("hex_session_" + roomName, sessionID);
-                    }
-                    if (msg.color) {
-                        myColor = msg.color;
-                        const el = document.getElementById("player-color");
-                        const cls = myColor === "red" ? "red" : "blue";
-                        el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
-                    }
-                    if (msg.playerName) {
-                        playerName = msg.playerName;
-                        document.getElementById("player-name").textContent = playerName;
-                    }
-                    document.getElementById("waiting").style.display = "none";
-                    document.getElementById("turn").style.display = "";
-                    updateTurn();
-                    return;
-                }
-
-                if (msg.reconnected) {
-                    myColor = msg.color;
-                    playerName = msg.playerName;
-                    gameStarted = true;
-                    document.getElementById("player-name").textContent = playerName;
-                    const el = document.getElementById("player-color");
-                    const cls = myColor === "red" ? "red" : "blue";
-                    el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
-                    document.getElementById("waiting").style.display = "none";
-                    document.getElementById("turn").style.display = "";
-                    updateTurn();
                     return;
                 }
 

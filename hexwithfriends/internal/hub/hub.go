@@ -9,10 +9,10 @@ import (
 )
 
 type User struct {
-	conn         *websocket.Conn
-	playerName   string
-	sessionID    string
-	is_connected bool
+	conn        *websocket.Conn
+	playerName  string
+	sessionID   string
+	isConnected bool
 
 	color  string
 	myTurn bool
@@ -56,21 +56,26 @@ func run(h *Hub) {
 	}
 }
 
+func (h *Hub) handleReconnect(user User, existing User) {
+	existing.conn = user.conn
+	existing.isConnected = true
+	h.players[user.sessionID] = existing
+	h.connToSession[user.conn] = user.sessionID
+
+	m, _ := json.Marshal(map[string]interface{}{
+		"reconnected": true, "color": existing.color,
+		"playerName": existing.playerName, "sessionID": user.sessionID,
+		"board":     h.game.Board[:game.PlayableCells],
+		"isRedTurn": h.game.IsRedTurn,
+	})
+	user.conn.WriteMessage(websocket.TextMessage, m)
+
+	h.broadcastMessage(map[string]string{"opponent_reconnected": "true"})
+}
+
 func (h *Hub) handleRegister(user User) {
-	// reconnecting player
-	if existing, ok := h.players[user.sessionID]; ok && !existing.is_connected {
-		existing.conn = user.conn
-		existing.is_connected = true
-		h.players[user.sessionID] = existing
-		h.connToSession[user.conn] = user.sessionID
-
-		m, _ := json.Marshal(map[string]interface{}{
-			"reconnected": true, "color": existing.color,
-			"playerName": existing.playerName, "sessionID": user.sessionID,
-		})
-		user.conn.WriteMessage(websocket.TextMessage, m)
-
-		h.broadcastMessage(map[string]string{"opponent_reconnected": "true"})
+	if existing, ok := h.players[user.sessionID]; ok && !existing.isConnected {
+		h.handleReconnect(user, existing)
 		return
 	}
 
@@ -83,7 +88,7 @@ func (h *Hub) handleRegister(user User) {
 	}
 
 	user.sessionID = uuid.New().String()
-	user.is_connected = true
+	user.isConnected = true
 	assignColor(&user, h)
 	h.connToSession[user.conn] = user.sessionID
 
@@ -96,7 +101,9 @@ func (h *Hub) handleRegister(user User) {
 				"start": "true", "color": u.color,
 				"playerName": u.playerName, "sessionID": u.sessionID,
 			})
-			u.conn.WriteMessage(websocket.TextMessage, m)
+			if u.conn != nil {
+				u.conn.WriteMessage(websocket.TextMessage, m)
+			}
 			_ = sid
 		}
 	}
@@ -111,7 +118,7 @@ func (h *Hub) handleUnregister(user User) {
 	delete(h.connToSession, user.conn)
 	u := h.players[sid]
 	u.conn = nil
-	u.is_connected = false
+	u.isConnected = false
 	h.players[sid] = u
 	user.conn.Close()
 }
@@ -180,10 +187,14 @@ func (h *Hub) handleWin(node game.Node) {
 	}
 }
 
+func (h *Hub) getBoardState() []game.Node {
+	return h.game.Board[:]
+}
+
 func (h *Hub) broadcastMessage(msg interface{}) {
 	data, _ := json.Marshal(msg)
 	for _, u := range h.players {
-		if u.conn != nil && u.is_connected {
+		if u.conn != nil && u.isConnected {
 			u.conn.WriteMessage(websocket.TextMessage, data)
 		}
 	}

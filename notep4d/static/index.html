@@ -64,7 +64,7 @@
             <div id="qr" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;padding:8px;background:#fff;border:1px solid #999;border-radius:4px;z-index:10;"></div>
         </span>
     </div>
-    <textarea id="editor" placeholder="Start typing..."></textarea>
+    <textarea id="editor" placeholder="Start typing..." disabled>Loading...</textarea>
 
     <script>
         function toggleQR(e) {
@@ -104,15 +104,31 @@
         const editor = document.getElementById("editor");
         let ws;
         let suppressUpdate = true;
+        let savedRelStart = null;
+        let savedRelEnd = null;
 
-        function absToRel(pos) {
-            return Y.createRelativePositionFromTypeIndex(ytext, pos);
+        function saveCursor() {
+            if (document.activeElement === editor) {
+                savedRelStart = Y.createRelativePositionFromTypeIndex(ytext, editor.selectionStart);
+                savedRelEnd = Y.createRelativePositionFromTypeIndex(ytext, editor.selectionEnd);
+            }
         }
 
-        function relToAbs(rel) {
-            const abs = Y.createAbsolutePositionFromRelativePosition(rel, ydoc);
-            return abs ? abs.index : null;
+        function restoreCursor() {
+            if (savedRelStart && savedRelEnd) {
+                const s = Y.createAbsolutePositionFromRelativePosition(savedRelStart, ydoc);
+                const e = Y.createAbsolutePositionFromRelativePosition(savedRelEnd, ydoc);
+                editor.selectionStart = s ? s.index : 0;
+                editor.selectionEnd = e ? e.index : 0;
+            }
         }
+
+        editor.addEventListener("keydown", saveCursor);
+        editor.addEventListener("keyup", saveCursor);
+        editor.addEventListener("mousedown", saveCursor);
+        editor.addEventListener("mouseup", saveCursor);
+        editor.addEventListener("select", saveCursor);
+        editor.addEventListener("focus", saveCursor);
 
         ydoc.on("update", (update) => {
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -122,18 +138,12 @@
 
         ytext.observe(() => {
             if (!suppressUpdate) {
-                const relStart = absToRel(editor.selectionStart);
-                const relEnd = absToRel(editor.selectionEnd);
-
                 editor.value = ytext.toString();
-
-                const newStart = relToAbs(relStart) ?? 0;
-                const newEnd = relToAbs(relEnd) ?? 0;
-                editor.selectionStart = newStart;
-                editor.selectionEnd = newEnd;
+                restoreCursor();
             }
         });
 
+        editor.addEventListener("beforeinput", saveCursor);
         editor.addEventListener("input", (e) => {
             suppressUpdate = true;
             const val = editor.value;
@@ -151,6 +161,7 @@
                 if (newEnd > start) ytext.insert(start, val.slice(start, newEnd));
             });
             suppressUpdate = false;
+            saveCursor();
         });
 
         function connect() {
@@ -177,6 +188,7 @@
                 } else {
                     const msg = JSON.parse(e.data);
                     if (msg.type === "ready") {
+                        editor.disabled = false;
                         suppressUpdate = false;
                         editor.value = ytext.toString();
                     }

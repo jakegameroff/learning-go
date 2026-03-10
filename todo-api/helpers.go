@@ -1,9 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-	"encoding/json"
 )
 
 func save(todoList []Todo) error {
@@ -26,7 +26,7 @@ func fetch() ([]Todo, error) {
 		err = os.WriteFile("todolist.json", []byte("[]"), 0644)
 		if err != nil {
 			return todoList, err
-		} 
+		}
 		return todoList, nil
 	}
 
@@ -56,7 +56,7 @@ func deleteTodo(todoList *[]Todo, index int) (Todo, error) {
 	return todo, nil
 }
 
-func modifyTodo(todoList *[]Todo, mark bool, index int) (*Todo, error){
+func modifyTodo(todoList *[]Todo, mark bool, index int) (*Todo, error) {
 	if index < 0 || index >= len(*todoList) {
 		return &Todo{}, fmt.Errorf("Index out of range")
 	}

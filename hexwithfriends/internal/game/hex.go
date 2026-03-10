@@ -3,6 +3,10 @@ package game
 type Game struct {
 	Board  [totalNodes]Node
 	Parent [totalNodes]int
+
+	TotalNodes int
+	Turns      []Node
+	IsRedTurn  bool
 }
 
 type Node struct {
@@ -15,6 +19,7 @@ type Pair struct{ R, C int }
 
 const size = 11
 const totalNodes = size*size + 4
+const PlayableCells = size * size
 const r1 = size * size
 const r2 = size*size + 1
 const b1 = size*size + 2
@@ -22,6 +27,10 @@ const b2 = size*size + 3
 
 func InitGame() Game {
 	var g Game
+	g.TotalNodes = totalNodes
+	g.Turns = []Node{}
+	g.IsRedTurn = true
+
 	for i := range g.Board {
 		var color string
 		isWinNode := false
@@ -38,7 +47,7 @@ func InitGame() Game {
 			Color:     color,
 			IsWinNode: isWinNode,
 		}
-		g.Parent[i] = i
+		g.Parent[i] = i // every node starts as its own parent
 	}
 	return g
 }
@@ -127,5 +136,7 @@ func (g *Game) Move(node Node) bool {
 		return false
 	}
 	g.Board[node.Index] = node
+	g.Turns = append(g.Turns, node)
+	g.IsRedTurn = !g.IsRedTurn
 	return true
 }

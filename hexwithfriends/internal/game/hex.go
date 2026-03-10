@@ -1,4 +1,4 @@
-package main
+package game
 
 type Game struct {
 	Board  [totalNodes]Node
@@ -20,7 +20,7 @@ const r2 = size*size + 1
 const b1 = size*size + 2
 const b2 = size*size + 3
 
-func initGame() Game {
+func InitGame() Game {
 	var g Game
 	for i := range g.Board {
 		var color string
@@ -108,7 +108,7 @@ func (g *Game) getMonochromaticNeighbors(node Node) []int {
 	return monochromaticNeighbors
 }
 
-func (g *Game) isWinningMove(node Node) bool {
+func (g *Game) IsWinningMove(node Node) bool {
 	monochromaticNeighbors := g.getMonochromaticNeighbors(node)
 	for _, neighbor := range monochromaticNeighbors {
 		g.union(node.Index, neighbor)
@@ -120,4 +120,12 @@ func (g *Game) isWinningMove(node Node) bool {
 		return g.find(b1) == g.find(b2)
 	}
 	return false
+}
+
+func (g *Game) Move(node Node) bool {
+	if node.Index < 0 || node.Index >= size*size || g.Board[node.Index].Color != "" {
+		return false
+	}
+	g.Board[node.Index] = node
+	return true
 }

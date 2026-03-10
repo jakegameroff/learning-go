@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>hex</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,2 93,27 93,73 50,98 7,73 7,27' fill='%234a9'/></svg>">
     <style>
         * { box-sizing: border-box; }
         body {
@@ -17,34 +18,37 @@
             align-items: center;
             min-height: 100dvh;
         }
-        .header {
-            width: 100%;
-            max-width: 600px;
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
+            align-items: flex-start;
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            color: #888;
+            z-index: 10;
+            pointer-events: none;
         }
+        .top-bar > * { pointer-events: auto; }
         .title {
-            font-size: 1.1rem;
             cursor: pointer;
+            font-size: 0.8rem;
         }
         .title b { font-family: monospace; }
-        .status { font-size: 0.8rem; color: #aaa; }
-        .status.connected { color: #6b9; }
-        .info {
-            width: 100%;
-            max-width: 600px;
-            font-size: 0.85rem;
-            color: #888;
-            margin-bottom: 10px;
+        .top-right {
+            text-align: right;
         }
-        .info .player-name { font-weight: 600; color: #555; }
-        .info .red { color: #e25555; }
-        .info .blue { color: #4488cc; }
+        .status { font-size: 0.75rem; color: #aaa; }
+        .status.connected { color: #6b9; }
+        .player-name { font-weight: 600; color: #555; }
+        .red { color: #e25555; }
+        .blue { color: #4488cc; }
         .turn-indicator {
             font-size: 0.95rem;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             text-align: center;
             letter-spacing: 0.02em;
         }
@@ -118,8 +122,8 @@
 
         @media (prefers-color-scheme: dark) {
             body { background: #151514; color: #ddd; }
-            .info { color: #777; }
-            .info .player-name { color: #bbb; }
+            .top-bar { color: #666; }
+            .player-name { color: #bbb; }
             .winner-banner { background: #222; box-shadow: 0 1px 6px rgba(0,0,0,0.3); }
             .hex-cell.empty { fill: #2a2926; }
             .hex-cell.empty:hover { fill: #3a3835; }
@@ -129,15 +133,15 @@
     </style>
 </head>
 <body>
-    <div class="header">
+    <div class="top-bar">
         <span class="title" onclick="navigator.clipboard.writeText(window.location.href).then(()=>{this.style.color='#6b9';setTimeout(()=>this.style.color='',400)})">
-            hex<b id="room-name"></b>
+            <b id="room-name"></b>
         </span>
-        <span id="status" class="status">Connecting...</span>
-    </div>
-    <div class="info">
-        You are <span id="player-name" class="player-name"></span>
-        <span id="player-color"></span>
+        <div class="top-right">
+            <span id="player-name" class="player-name"></span>
+            <span id="player-color"></span><br>
+            <span id="status" class="status">Connecting...</span>
+        </div>
     </div>
     <div id="waiting" class="turn-indicator" style="color:#aaa;">Waiting for opponent...</div>
     <div id="turn" class="turn-indicator" style="display:none;"></div>
@@ -149,10 +153,11 @@
     <script>
         const SIZE = 11;
         const roomName = window.location.pathname;
-        document.getElementById("room-name").textContent = roomName;
+        document.getElementById("room-name").textContent = "hexwithfriends.com" + roomName;
 
-        let playerID = "";
+        let playerName = "";
         let myColor = null;
+        let sessionID = null;
         let currentTurn = "red";
         let gameStarted = false;
         let gameOver = false;
@@ -296,7 +301,9 @@
         function connect() {
             const host = window.location.host;
             const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-            ws = new WebSocket(proto + "//" + host + roomName);
+            let url = proto + "//" + host + roomName;
+            if (sessionID) url += "?session=" + sessionID;
+            ws = new WebSocket(url);
 
             ws.onopen = () => {
                 document.getElementById("status").textContent = "Connected";
@@ -312,9 +319,9 @@
             ws.onmessage = (e) => {
                 const msg = JSON.parse(e.data);
 
-                if (msg.playerID) {
-                    playerID = msg.playerID;
-                    document.getElementById("player-name").textContent = playerID;
+                if (msg.playerName) {
+                    playerName = msg.playerName;
+                    document.getElementById("player-name").textContent = playerName;
                     return;
                 }
 
@@ -375,9 +382,48 @@
 
                 if (msg.start) {
                     gameStarted = true;
+                    if (msg.sessionID) {
+                        sessionID = msg.sessionID;
+                        localStorage.setItem("hex_session_" + roomName, sessionID);
+                    }
+                    if (msg.color) {
+                        myColor = msg.color;
+                        const el = document.getElementById("player-color");
+                        const cls = myColor === "red" ? "red" : "blue";
+                        el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
+                    }
+                    if (msg.playerName) {
+                        playerName = msg.playerName;
+                        document.getElementById("player-name").textContent = playerName;
+                    }
                     document.getElementById("waiting").style.display = "none";
                     document.getElementById("turn").style.display = "";
                     updateTurn();
+                    return;
+                }
+
+                if (msg.reconnected) {
+                    myColor = msg.color;
+                    playerName = msg.playerName;
+                    gameStarted = true;
+                    document.getElementById("player-name").textContent = playerName;
+                    const el = document.getElementById("player-color");
+                    const cls = myColor === "red" ? "red" : "blue";
+                    el.innerHTML = '&middot; <span class="' + cls + '">' + myColor + '</span>';
+                    document.getElementById("waiting").style.display = "none";
+                    document.getElementById("turn").style.display = "";
+                    updateTurn();
+                    return;
+                }
+
+                if (msg.opponent_disconnected) {
+                    document.getElementById("waiting").textContent = "Opponent disconnected — waiting for reconnect...";
+                    document.getElementById("waiting").style.display = "";
+                    return;
+                }
+
+                if (msg.opponent_reconnected) {
+                    document.getElementById("waiting").style.display = "none";
                     return;
                 }
 
@@ -409,6 +455,7 @@
         }
 
         buildBoard();
+        sessionID = localStorage.getItem("hex_session_" + roomName);
         connect();
     </script>
 </body>

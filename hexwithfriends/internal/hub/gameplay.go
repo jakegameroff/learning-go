@@ -1,4 +1,4 @@
-package main
+package hub
 
 import (
 	"math/rand"
@@ -13,7 +13,7 @@ func assignColor(user *User, h *Hub) {
 			user.color = "blue"
 			user.myTurn = false
 		}
-		h.players[user.conn] = *user
+		h.players[user.sessionID] = *user
 	} else if len(h.players) == 1 {
 		var u User
 		for _, u = range h.players {
@@ -27,16 +27,8 @@ func assignColor(user *User, h *Hub) {
 			user.color = "red"
 			user.myTurn = true
 		}
-		h.players[user.conn] = *user
+		h.players[user.sessionID] = *user
 	} else {
 		return
 	}
-}
-
-func (g *Game) move(node Node) bool {
-	if node.Index < 0 || node.Index >= size*size || g.Board[node.Index].Color != "" {
-		return false
-	}
-	g.Board[node.Index] = node
-	return true
 }

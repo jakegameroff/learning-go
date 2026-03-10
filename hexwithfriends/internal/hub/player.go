@@ -1,4 +1,4 @@
-package main
+package hub
 
 import (
 	"encoding/json"
@@ -9,9 +9,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	roomName := r.URL.Path
-	playerID := r.URL.Query().Get("name")
+	playerName := r.URL.Query().Get("name")
+	sessionID := r.URL.Query().Get("session")
 	hub := getRoom(roomName)
 
 	var upgrader = websocket.Upgrader{
@@ -22,17 +23,24 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if playerID == "" {
+	if sessionID != "" {
+		hub.register <- User{conn: conn, sessionID: sessionID}
+		defer removeClient(hub, conn)
+		listenForClientMessage(hub, conn)
+		return
+	}
+
+	if playerName == "" {
 		var names []string
 		data, _ := os.ReadFile("static/names.json")
 		json.Unmarshal(data, &names)
-		playerID = names[rand.Intn(len(names))]
+		playerName = names[rand.Intn(len(names))]
 	}
 
-	idMsg, _ := json.Marshal(map[string]string{"playerID": playerID})
+	idMsg, _ := json.Marshal(map[string]string{"playerName": playerName})
 	conn.WriteMessage(websocket.TextMessage, idMsg)
 
-	addClient(hub, conn, playerID)
+	addClient(hub, conn, playerName)
 	defer removeClient(hub, conn)
 	listenForClientMessage(hub, conn)
 }

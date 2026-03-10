@@ -1,6 +1,7 @@
 package main
 
 import (
+	"hexwithfriends/internal/hub"
 	"log"
 	"net/http"
 )
@@ -9,7 +10,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		upgradeHeader := r.Header.Get("Upgrade")
 		if upgradeHeader == "websocket" {
-			handleWebSocket(w, r)
+			hub.HandleWebSocket(w, r)
 		} else if r.URL.Path == "/" {
 			http.ServeFile(w, r, "static/landing.html")
 		} else {

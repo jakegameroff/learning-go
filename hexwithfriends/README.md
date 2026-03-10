@@ -17,7 +17,27 @@ Inspired by [setwithfriends.com](https://setwithfriends.com).
 - Go backend with WebSocket multiplayer
 - Union-Find for win detection
 - Room-based matchmaking
-- Single-file SVG frontend
+- SVG frontend
+
+## Project structure
+
+```
+main.go                     # entrypoint — routing and server startup
+internal/
+  game/                     # game logic (no networking)
+    hex.go                  # board, nodes, neighbors, win detection, moves
+    union_find.go           # union-find for connected component tracking
+    README.md               # explanation of the win-detection algorithm
+  hub/
+    hub.go                  # Hub struct, main game loop (register/broadcast/unregister)
+    room.go                 # room management — create/lookup by name
+    player.go               # WebSocket handler, client read loop
+    gameplay.go             # color assignment
+static/
+  landing.html              # home page
+  index.html                # game board UI
+  names.json                # random player names
+```
 
 ## Status
 
@@ -26,8 +46,7 @@ This is an MVP and not production ready.
 ### TODO
 
 - Add in-game chat (port from [chatroom](../chatroom/))
-- Clean up the codebase
-- Improve the UI — mobile layout, animations, polish
+-Improve the UI — mobile layout, animations, polish
 - Handle player disconnects and reconnects gracefully
 - Add spectator mode
 - Add move take-backs
